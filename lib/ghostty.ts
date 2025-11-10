@@ -5,15 +5,15 @@
  * exports from libghostty-vt.wasm
  */
 
-import type {
-  GhosttyWasmExports,
-  SgrAttribute,
+import {
+  type GhosttyWasmExports,
+  type SgrAttribute,
   SgrAttributeTag,
-  RGBColor,
-  KeyEvent,
+  type RGBColor,
+  type KeyEvent,
   KeyEncoderOption,
-  KittyKeyFlags,
-} from './types.ts';
+  type KittyKeyFlags,
+} from './types';
 
 /**
  * Main Ghostty WASM wrapper class

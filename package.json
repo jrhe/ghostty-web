@@ -1,0 +1,48 @@
+{
+  "name": "@cmux/ghostty-terminal",
+  "version": "0.1.0",
+  "description": "Terminal emulator using Ghostty's VT100 parser via WASM",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./addons/fit": {
+      "types": "./dist/addons/fit.d.ts",
+      "default": "./dist/addons/fit.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "ghostty-vt.wasm",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:wasm": "bash scripts/build-wasm.sh",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "keywords": ["terminal", "xterm", "ghostty", "wasm", "vt100"],
+  "author": "Coder",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coder/cmux.git"
+  },
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "^1.2.23",
+    "typescript": "^5.1.3",
+    "vite": "^7.1.11"
+  },
+  "browserslist": [
+    "Chrome >= 90"
+  ]
+}
