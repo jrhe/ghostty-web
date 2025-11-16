@@ -133,5 +133,9 @@ jobs:
         with:
           bun-version: latest
 
+      - uses: ./.github/actions/setup-zig
+        with:
+          version: 0.15.2
+
       - name: Publish to NPM
         uses: ./.github/actions/npm-publish
