@@ -12,7 +12,7 @@
 
 import type { ITheme } from './interfaces';
 import type { SelectionManager } from './selection-manager';
-import type { GhosttyCell } from './types';
+import type { GhosttyCell, ILink } from './types';
 import { CellFlags } from './types';
 
 // Interface for objects that can be rendered
@@ -103,6 +103,10 @@ export class CanvasRenderer {
 
   // Selection manager (for rendering selection overlay)
   private selectionManager?: SelectionManager;
+
+  // Link rendering state
+  private hoveredHyperlinkId: number = 0;
+  private previousHoveredHyperlinkId: number = 0;
 
   constructor(canvas: HTMLCanvasElement, options: RendererOptions = {}) {
     this.canvas = canvas;
@@ -305,6 +309,48 @@ export class CanvasRenderer {
       }
     }
 
+    // Track rows with hyperlinks that need redraw when hover changes
+    const hyperlinkRows = new Set<number>();
+    const hyperlinkChanged = this.hoveredHyperlinkId !== this.previousHoveredHyperlinkId;
+
+    if (hyperlinkChanged) {
+      // Find rows containing the old or new hovered hyperlink
+      // Must check the correct buffer based on viewportY (scrollback vs screen)
+      for (let y = 0; y < dims.rows; y++) {
+        let line: GhosttyCell[] | null = null;
+
+        // Same logic as rendering: fetch from scrollback or screen
+        if (viewportY > 0) {
+          if (y < viewportY && scrollbackProvider) {
+            // This row is from scrollback
+            const scrollbackOffset = scrollbackLength - viewportY + y;
+            line = scrollbackProvider.getScrollbackLine(scrollbackOffset);
+          } else {
+            // This row is from visible screen
+            const screenRow = y - viewportY;
+            line = buffer.getLine(screenRow);
+          }
+        } else {
+          // At bottom - fetch from visible screen
+          line = buffer.getLine(y);
+        }
+
+        if (line) {
+          for (const cell of line) {
+            if (
+              cell.hyperlink_id === this.hoveredHyperlinkId ||
+              cell.hyperlink_id === this.previousHoveredHyperlinkId
+            ) {
+              hyperlinkRows.add(y);
+              break; // Found hyperlink in this row
+            }
+          }
+        }
+      }
+      // Update previous state
+      this.previousHoveredHyperlinkId = this.hoveredHyperlinkId;
+    }
+
     // Track if anything was actually rendered
     let anyLinesRendered = false;
 
@@ -312,7 +358,9 @@ export class CanvasRenderer {
     for (let y = 0; y < dims.rows; y++) {
       // When scrolled, always force render all lines since we're showing scrollback
       const needsRender =
-        viewportY > 0 ? true : forceAll || buffer.isRowDirty(y) || selectionRows.has(y);
+        viewportY > 0
+          ? true
+          : forceAll || buffer.isRowDirty(y) || selectionRows.has(y) || hyperlinkRows.has(y);
 
       if (!needsRender) {
         continue;
@@ -354,6 +402,8 @@ export class CanvasRenderer {
       // Draw selection overlay - only when we've redrawn the underlying text
       this.renderSelection(dims.cols);
     }
+
+    // Link underlines are drawn during cell rendering (see renderCell)
 
     // Render cursor (only if we're at the bottom, not scrolled)
     if (viewportY === 0 && cursor.visible && this.cursorVisible) {
@@ -471,6 +521,22 @@ export class CanvasRenderer {
       this.ctx.moveTo(cellX, strikeY);
       this.ctx.lineTo(cellX + cellWidth, strikeY);
       this.ctx.stroke();
+    }
+
+    // Draw hyperlink underline
+    if (cell.hyperlink_id > 0) {
+      const isHovered = cell.hyperlink_id === this.hoveredHyperlinkId;
+
+      // Only show underline when hovered (cleaner look)
+      if (isHovered) {
+        const underlineY = cellY + this.metrics.baseline + 2;
+        this.ctx.strokeStyle = '#4A90E2'; // Blue underline on hover
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.moveTo(cellX, underlineY);
+        this.ctx.lineTo(cellX + cellWidth, underlineY);
+        this.ctx.stroke();
+      }
     }
   }
 
@@ -672,6 +738,27 @@ export class CanvasRenderer {
    */
   public setSelectionManager(manager: SelectionManager): void {
     this.selectionManager = manager;
+  }
+
+  /**
+   * Set the currently hovered hyperlink ID for rendering underlines
+   */
+  public setHoveredHyperlinkId(hyperlinkId: number): void {
+    this.hoveredHyperlinkId = hyperlinkId;
+  }
+
+  /**
+   * Get character cell width (for coordinate conversion)
+   */
+  public get charWidth(): number {
+    return this.metrics.width;
+  }
+
+  /**
+   * Get character cell height (for coordinate conversion)
+   */
+  public get charHeight(): number {
+    return this.metrics.height;
   }
 
   /**

@@ -177,7 +177,10 @@ export class Buffer implements IBuffer {
 
     if (this.bufferType === 'normal' && y < scrollbackLength) {
       // Accessing scrollback
-      const scrollbackOffset = scrollbackLength - y - 1; // Most recent = 0
+      // WASM getScrollbackLine: offset 0 = oldest, offset (length-1) = newest
+      // Buffer coords: y=0 = oldest, y=(length-1) = newest
+      // So scrollbackOffset = y directly!
+      const scrollbackOffset = y;
       cells = wasmTerm.getScrollbackLine(scrollbackOffset);
       // TODO: We'd need WASM API to check if scrollback line is wrapped
       // For now, assume not wrapped
@@ -363,5 +366,29 @@ export class BufferCell implements IBufferCell {
 
   isFaint(): number {
     return (this.cell.flags & CellFlags.FAINT) !== 0 ? 1 : 0;
+  }
+
+  /**
+   * Get hyperlink ID for this cell (0 = no link)
+   * Used by link detection system
+   */
+  getHyperlinkId(): number {
+    return this.cell.hyperlink_id;
+  }
+
+  /**
+   * Get the Unicode codepoint for this cell
+   * Used by link detection system
+   */
+  getCodepoint(): number {
+    return this.cell.codepoint;
+  }
+
+  /**
+   * Check if cell has dim/faint attribute
+   * Added for IBufferCell compatibility
+   */
+  isDim(): boolean {
+    return (this.cell.flags & CellFlags.FAINT) !== 0;
   }
 }
