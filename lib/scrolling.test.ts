@@ -6,7 +6,6 @@ describe('Terminal Scrolling', () => {
   let container: HTMLElement;
 
   beforeEach(async () => {
-    if (typeof document === 'undefined') return; // Skip if no DOM
     container = document.createElement('div');
     document.body.appendChild(container);
     terminal = new Terminal({ cols: 80, rows: 24 });
@@ -24,8 +23,6 @@ describe('Terminal Scrolling', () => {
 
   describe('Normal Screen Mode', () => {
     test('should scroll viewport on wheel event in normal mode', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       // Fill with enough lines to create scrollback
       for (let i = 0; i < 50; i++) {
         terminal.write(`Line ${i}\r\n`);
@@ -42,13 +39,11 @@ describe('Terminal Scrolling', () => {
       });
       container.dispatchEvent(wheelEvent);
 
-      // Viewport should have scrolled up
-      expect(terminal.viewportY).toBeLessThan(initialViewportY);
+      // Viewport should have scrolled up (viewportY increases away from 0)
+      expect(terminal.viewportY).toBeGreaterThan(initialViewportY);
     });
 
     test('should scroll down on positive deltaY', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       // Fill with scrollback
       for (let i = 0; i < 50; i++) {
         terminal.write(`Line ${i}\r\n`);
@@ -66,13 +61,11 @@ describe('Terminal Scrolling', () => {
       });
       container.dispatchEvent(wheelEvent);
 
-      // Viewport should have scrolled down
-      expect(terminal.viewportY).toBeGreaterThan(scrolledUpViewportY);
+      // Viewport should have scrolled down (viewportY decreases towards 0)
+      expect(terminal.viewportY).toBeLessThan(scrolledUpViewportY);
     });
 
     test('should not send data to application in normal mode', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const dataSent: string[] = [];
       terminal.onData((data) => dataSent.push(data));
 
@@ -91,20 +84,15 @@ describe('Terminal Scrolling', () => {
 
   describe('Alternate Screen Mode', () => {
     beforeEach(() => {
-      if (typeof document === 'undefined' || !terminal) return; // Skip if no DOM
       // Enter alternate screen mode (vim, less, htop, etc.)
       terminal.write('\x1B[?1049h');
     });
 
     test('should detect alternate screen mode', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       expect(terminal.wasmTerm?.isAlternateScreen()).toBe(true);
     });
 
     test('should send arrow up sequences on wheel up in alternate screen', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const dataSent: string[] = [];
       terminal.onData((data) => dataSent.push(data));
 
@@ -123,8 +111,6 @@ describe('Terminal Scrolling', () => {
     });
 
     test('should send arrow down sequences on wheel down in alternate screen', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const dataSent: string[] = [];
       terminal.onData((data) => dataSent.push(data));
 
@@ -143,8 +129,6 @@ describe('Terminal Scrolling', () => {
     });
 
     test('should not scroll viewport in alternate screen', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const initialViewportY = terminal.viewportY;
 
       // Simulate wheel event
@@ -160,8 +144,6 @@ describe('Terminal Scrolling', () => {
     });
 
     test('should cap arrow count at 5 per wheel event', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const dataSent: string[] = [];
       terminal.onData((data) => dataSent.push(data));
 
@@ -180,8 +162,6 @@ describe('Terminal Scrolling', () => {
 
   describe('Mode Transitions', () => {
     test('should switch behavior when entering alternate screen', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       // Start in normal mode
       for (let i = 0; i < 30; i++) {
         terminal.write(`Line ${i}\r\n`);
@@ -219,8 +199,6 @@ describe('Terminal Scrolling', () => {
     });
 
     test('should switch back to viewport scrolling when exiting alternate screen', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       // Enter alternate screen
       terminal.write('\x1B[?1049h');
       expect(terminal.wasmTerm?.isAlternateScreen()).toBe(true);
@@ -247,16 +225,14 @@ describe('Terminal Scrolling', () => {
       });
       container.dispatchEvent(wheelEvent);
 
-      // Should have scrolled, not sent data
+      // Should have scrolled up, not sent data
       expect(dataSent.length).toBe(0);
-      expect(terminal.viewportY).toBeLessThan(initialViewportY);
+      expect(terminal.viewportY).toBeGreaterThan(initialViewportY);
     });
   });
 
   describe('Custom Wheel Handler', () => {
     test('should respect custom wheel handler in both modes', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       let customHandlerCalled = false;
       terminal.attachCustomWheelEventHandler(() => {
         customHandlerCalled = true;
@@ -274,8 +250,6 @@ describe('Terminal Scrolling', () => {
     });
 
     test('custom handler can delegate to default behavior', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       terminal.attachCustomWheelEventHandler(() => {
         return false; // Don't override, use default
       });
@@ -301,8 +275,6 @@ describe('Terminal Scrolling', () => {
 
   describe('Edge Cases', () => {
     test('should handle zero deltaY gracefully', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const dataSent: string[] = [];
       terminal.onData((data) => dataSent.push(data));
 
@@ -318,8 +290,6 @@ describe('Terminal Scrolling', () => {
     });
 
     test('should handle very small deltaY values', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const dataSent: string[] = [];
       terminal.onData((data) => dataSent.push(data));
 
@@ -338,8 +308,6 @@ describe('Terminal Scrolling', () => {
     });
 
     test('should handle terminal not yet opened', () => {
-      if (typeof document === 'undefined') return; // Skip if no DOM
-
       const closedTerminal = new Terminal({ cols: 80, rows: 24 });
 
       // Should not crash when handleWheel is called without wasmTerm
@@ -366,7 +334,6 @@ describe('Scrolling Methods', () => {
   let container: HTMLDivElement | null = null;
 
   beforeEach(async () => {
-    if (typeof document === 'undefined') return; // Skip if no DOM
     container = document.createElement('div');
     document.body.appendChild(container);
     term = new Terminal({ cols: 80, rows: 24, scrollback: 1000 });
@@ -374,7 +341,6 @@ describe('Scrolling Methods', () => {
   });
 
   afterEach(() => {
-    if (!term || !container) return; // Skip if no DOM
     term.dispose();
     document.body.removeChild(container);
     term = null;
@@ -382,8 +348,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollLines() should scroll viewport up', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write some content to create scrollback
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);
@@ -397,8 +361,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollLines() should scroll viewport down', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content and scroll up first
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);
@@ -413,8 +375,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollLines() should not scroll beyond bounds', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write limited content
     for (let i = 0; i < 10; i++) {
       term.write(`Line ${i}\r\n`);
@@ -429,8 +389,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollLines() should not scroll below bottom', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content and scroll up
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);
@@ -445,8 +403,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollPages() should scroll by page', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content
     for (let i = 0; i < 100; i++) {
       term.write(`Line ${i}\r\n`);
@@ -460,8 +416,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollToTop() should scroll to top of buffer', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);
@@ -476,8 +430,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollToBottom() should scroll to bottom', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content and scroll up
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);
@@ -492,8 +444,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollToLine() should scroll to specific line', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);
@@ -506,8 +456,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollToLine() should clamp to valid range', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write limited content
     for (let i = 0; i < 10; i++) {
       term.write(`Line ${i}\r\n`);
@@ -522,8 +470,6 @@ describe('Scrolling Methods', () => {
   });
 
   test('scrollToLine() should handle negative values', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);
@@ -542,7 +488,6 @@ describe('Scroll Events', () => {
   let container: HTMLDivElement | null = null;
 
   beforeEach(async () => {
-    if (typeof document === 'undefined') return; // Skip if no DOM
     container = document.createElement('div');
     document.body.appendChild(container);
     term = new Terminal({ cols: 80, rows: 24, scrollback: 1000 });
@@ -550,7 +495,6 @@ describe('Scroll Events', () => {
   });
 
   afterEach(() => {
-    if (!term || !container) return; // Skip if no DOM
     term.dispose();
     document.body.removeChild(container);
     term = null;
@@ -558,8 +502,6 @@ describe('Scroll Events', () => {
   });
 
   test('onScroll should fire when scrolling', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     let scrollPosition = -1;
     let fireCount = 0;
 
@@ -581,8 +523,6 @@ describe('Scroll Events', () => {
   });
 
   test('onScroll should not fire if position unchanged', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     let fireCount = 0;
 
     term.onScroll(() => {
@@ -596,8 +536,6 @@ describe('Scroll Events', () => {
   });
 
   test('onScroll should fire multiple times for multiple scrolls', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     const positions: number[] = [];
 
     term.onScroll((position) => {
@@ -624,8 +562,6 @@ describe('Scroll Events', () => {
   // implementation. Firing it every frame causes performance issues.
 
   test('onCursorMove should fire when cursor moves', async () => {
-    if (!term || !container) return; // Skip if no DOM
-
     let moveCount = 0;
 
     term.onCursorMove(() => {
@@ -649,7 +585,6 @@ describe('Custom Wheel Event Handler', () => {
   let container: HTMLDivElement | null = null;
 
   beforeEach(async () => {
-    if (typeof document === 'undefined') return; // Skip if no DOM
     container = document.createElement('div');
     document.body.appendChild(container);
     term = new Terminal({ cols: 80, rows: 24, scrollback: 1000 });
@@ -657,7 +592,6 @@ describe('Custom Wheel Event Handler', () => {
   });
 
   afterEach(() => {
-    if (!term || !container) return; // Skip if no DOM
     term.dispose();
     document.body.removeChild(container);
     term = null;
@@ -665,8 +599,6 @@ describe('Custom Wheel Event Handler', () => {
   });
 
   test('attachCustomWheelEventHandler() should set handler', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     const handler = () => true;
     term.attachCustomWheelEventHandler(handler);
 
@@ -674,8 +606,6 @@ describe('Custom Wheel Event Handler', () => {
   });
 
   test('attachCustomWheelEventHandler() should allow clearing handler', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     const handler = () => true;
     term.attachCustomWheelEventHandler(handler);
     term.attachCustomWheelEventHandler(undefined);
@@ -684,8 +614,6 @@ describe('Custom Wheel Event Handler', () => {
   });
 
   test('custom wheel handler should block default scrolling when returning true', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     let handlerCalled = false;
 
     term.attachCustomWheelEventHandler(() => {
@@ -708,8 +636,6 @@ describe('Custom Wheel Event Handler', () => {
   });
 
   test('custom wheel handler should allow default scrolling when returning false', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     let handlerCalled = false;
 
     term.attachCustomWheelEventHandler(() => {
@@ -732,8 +658,6 @@ describe('Custom Wheel Event Handler', () => {
   });
 
   test('wheel events should scroll terminal by default', () => {
-    if (!term || !container) return; // Skip if no DOM
-
     // Write content
     for (let i = 0; i < 50; i++) {
       term.write(`Line ${i}\r\n`);

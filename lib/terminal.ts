@@ -324,6 +324,14 @@ export class Terminal implements ITerminalCore {
     // Write directly to WASM terminal (handles VT parsing internally)
     this.wasmTerm!.write(data);
 
+    // Check for bell character (BEL, \x07)
+    // WASM doesn't expose bell events, so we detect it in the data stream
+    if (typeof data === 'string' && data.includes('\x07')) {
+      this.bellEmitter.fire();
+    } else if (data instanceof Uint8Array && data.includes(0x07)) {
+      this.bellEmitter.fire();
+    }
+
     // Invalidate link cache (content changed)
     this.linkDetector?.invalidateCache();
 
@@ -821,6 +829,12 @@ export class Terminal implements ITerminalCore {
       this.canvas = undefined;
     }
 
+    // Remove textarea from DOM
+    if (this.textarea && this.textarea.parentNode) {
+      this.textarea.parentNode.removeChild(this.textarea);
+      this.textarea = undefined;
+    }
+
     // Remove event listeners
     if (this.element) {
       this.element.removeEventListener('wheel', this.handleWheel);
@@ -863,11 +877,11 @@ export class Terminal implements ITerminalCore {
    * Assert terminal is open (throw if not)
    */
   private assertOpen(): void {
-    if (!this.isOpen) {
-      throw new Error('Terminal must be opened before use. Call terminal.open(parent) first.');
-    }
     if (this.isDisposed) {
       throw new Error('Terminal has been disposed');
+    }
+    if (!this.isOpen) {
+      throw new Error('Terminal must be opened before use. Call terminal.open(parent) first.');
     }
   }
 
