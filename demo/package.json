@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node bin/demo.js",
-    "dev": "bun run server/pty-server.ts"
+    "dev": "node bin/demo.js --dev"
   },
   "dependencies": {
     "@lydell/node-pty": "^1.0.1",

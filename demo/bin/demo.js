@@ -20,7 +20,8 @@ import pty from '@lydell/node-pty';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const HTTP_PORT = process.env.PORT || 8080;
+const DEV_MODE = process.argv.includes('--dev');
+const HTTP_PORT = process.env.PORT || (DEV_MODE ? 8000 : 8080);
 const WS_PORT = 3001;
 
 // ============================================================================
@@ -31,13 +32,25 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
 function findGhosttyWeb() {
+  // In dev mode, we use Vite - no need to find built assets
+  if (DEV_MODE) {
+    const repoRoot = path.join(__dirname, '..', '..');
+    const wasmPath = path.join(repoRoot, 'ghostty-vt.wasm');
+    if (!fs.existsSync(wasmPath)) {
+      console.error('Error: ghostty-vt.wasm not found.');
+      console.error('Run: bun run build:wasm');
+      process.exit(1);
+    }
+    return { distPath: null, wasmPath, repoRoot };
+  }
+
   // First, check for local development (repo root dist/)
   const localDist = path.join(__dirname, '..', '..', 'dist');
   const localJs = path.join(localDist, 'ghostty-web.js');
   const localWasm = path.join(__dirname, '..', '..', 'ghostty-vt.wasm');
 
   if (fs.existsSync(localJs) && fs.existsSync(localWasm)) {
-    return { distPath: localDist, wasmPath: localWasm, isDev: true };
+    return { distPath: localDist, wasmPath: localWasm, repoRoot: path.join(__dirname, '..', '..') };
   }
 
   // Use require.resolve to find the installed ghostty-web package
@@ -49,7 +62,7 @@ function findGhosttyWeb() {
     const wasmPath = path.join(ghosttyWebRoot, 'ghostty-vt.wasm');
 
     if (fs.existsSync(path.join(distPath, 'ghostty-web.js')) && fs.existsSync(wasmPath)) {
-      return { distPath, wasmPath, isDev: false };
+      return { distPath, wasmPath, repoRoot: null };
     }
   } catch (e) {
     // require.resolve failed, package not found
@@ -62,7 +75,7 @@ function findGhosttyWeb() {
   process.exit(1);
 }
 
-const { distPath, wasmPath, isDev } = findGhosttyWeb();
+const { distPath, wasmPath, repoRoot } = findGhosttyWeb();
 
 // ============================================================================
 // HTML Template
@@ -193,8 +206,9 @@ const HTML_TEMPLATE = `<!doctype html>
     </div>
 
     <script type="module">
-      import { Terminal, FitAddon } from '/dist/ghostty-web.js';
+      import { init, Terminal, FitAddon } from '/dist/ghostty-web.js';
 
+      await init();
       const term = new Terminal({
         cols: 80,
         rows: 24,
@@ -560,24 +574,24 @@ function sendWebSocketFrame(socket, data) {
 // Startup
 // ============================================================================
 
-httpServer.listen(HTTP_PORT, () => {
+function printBanner(url) {
   console.log('\n' + '═'.repeat(60));
-  console.log('  🚀 ghostty-web demo server' + (isDev ? ' (dev mode)' : ''));
+  console.log('  🚀 ghostty-web demo server' + (DEV_MODE ? ' (dev mode)' : ''));
   console.log('═'.repeat(60));
-  console.log(`\n  📺 Open: http://localhost:${HTTP_PORT}`);
+  console.log(`\n  📺 Open: ${url}`);
   console.log(`  📡 WebSocket PTY: ws://localhost:${WS_PORT}/ws`);
   console.log(`  🐚 Shell: ${getShell()}`);
   console.log(`  📁 Home: ${homedir()}`);
-  if (isDev) {
+  if (DEV_MODE) {
+    console.log(`  🔥 Hot reload enabled via Vite`);
+  } else if (repoRoot) {
     console.log(`  📦 Using local build: ${distPath}`);
   }
   console.log('\n  ⚠️  This server provides shell access.');
   console.log('     Only use for local development.\n');
   console.log('═'.repeat(60));
   console.log('  Press Ctrl+C to stop.\n');
-});
-
-wsServer.listen(WS_PORT);
+}
 
 // Graceful shutdown
 process.on('SIGINT', () => {
@@ -588,3 +602,26 @@ process.on('SIGINT', () => {
   }
   process.exit(0);
 });
+
+// Start WebSocket PTY server (runs in both modes)
+wsServer.listen(WS_PORT);
+
+// Start HTTP/Vite server
+if (DEV_MODE) {
+  // Dev mode: use Vite for hot reload
+  const { createServer } = await import('vite');
+  const vite = await createServer({
+    root: repoRoot,
+    server: {
+      port: HTTP_PORT,
+      strictPort: true,
+    },
+  });
+  await vite.listen();
+  printBanner(`http://localhost:${HTTP_PORT}/demo/`);
+} else {
+  // Production mode: static file server
+  httpServer.listen(HTTP_PORT, () => {
+    printBanner(`http://localhost:${HTTP_PORT}`);
+  });
+}
