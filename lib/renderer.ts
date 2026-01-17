@@ -195,18 +195,25 @@ export class CanvasRenderer {
     // Set font (use actual pixel size for accurate measurement)
     ctx.font = `${this.fontSize}px ${this.fontFamily}`;
 
-    // Measure width using 'M' (typically widest character)
-    const widthMetrics = ctx.measureText('M');
-    const width = Math.ceil(widthMetrics.width);
+    // Measure using a representative character
+    const metrics = ctx.measureText('M');
 
-    // Measure height using ascent + descent with padding for glyph overflow
-    const ascent = widthMetrics.actualBoundingBoxAscent || this.fontSize * 0.8;
-    const descent = widthMetrics.actualBoundingBoxDescent || this.fontSize * 0.2;
+    // Use font's declared metrics (fontBoundingBox) instead of actual rendered pixels.
+    // This matches how native Ghostty uses the font's published metrics rather than
+    // character-specific measurements. fontBoundingBox* represents the font's declared
+    // ascender/descender values which are consistent regardless of which glyphs are rendered.
+    // Fall back to actualBoundingBox for older browsers that don't support fontBoundingBox.
+    const ascent = metrics.fontBoundingBoxAscent ?? metrics.actualBoundingBoxAscent ?? this.fontSize * 0.8;
+    const descent = metrics.fontBoundingBoxDescent ?? metrics.actualBoundingBoxDescent ?? this.fontSize * 0.2;
 
-    // Add 2px padding to height to account for glyphs that overflow (like 'f', 'd', 'g', 'p')
-    // and anti-aliasing pixels
-    const height = Math.ceil(ascent + descent) + 2;
-    const baseline = Math.ceil(ascent) + 1; // Offset baseline by half the padding
+    // For width, use the measured advance width of 'M' for monospace fonts.
+    // All characters should have the same width in a monospace font.
+    const width = Math.ceil(metrics.width);
+
+    // Height is the font's declared ascent + descent (no extra padding needed since
+    // fontBoundingBox already accounts for the full vertical extent of all glyphs)
+    const height = Math.ceil(ascent + descent);
+    const baseline = Math.ceil(ascent);
 
     return { width, height, baseline };
   }
