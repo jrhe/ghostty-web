@@ -44,6 +44,7 @@ export interface IScrollbackProvider {
 export interface RendererOptions {
   fontSize?: number; // Default: 15
   fontFamily?: string; // Default: 'monospace'
+  lineHeight?: number; // Line height multiplier (e.g., 1.2 = 20% taller). Default: 1.0
   cursorStyle?: 'block' | 'underline' | 'bar'; // Default: 'block'
   cursorBlink?: boolean; // Default: false
   theme?: ITheme;
@@ -96,6 +97,7 @@ export class CanvasRenderer {
   private ctx: CanvasRenderingContext2D;
   private fontSize: number;
   private fontFamily: string;
+  private lineHeight: number;
   private cursorStyle: 'block' | 'underline' | 'bar';
   private cursorBlink: boolean;
   private theme: Required<ITheme>;
@@ -149,6 +151,7 @@ export class CanvasRenderer {
     // Apply options
     this.fontSize = options.fontSize ?? 15;
     this.fontFamily = options.fontFamily ?? 'monospace';
+    this.lineHeight = options.lineHeight ?? 1.0;
     this.cursorStyle = options.cursorStyle ?? 'block';
     this.cursorBlink = options.cursorBlink ?? false;
     this.theme = { ...DEFAULT_THEME, ...options.theme };
@@ -205,8 +208,13 @@ export class CanvasRenderer {
 
     // Add 2px padding to height to account for glyphs that overflow (like 'f', 'd', 'g', 'p')
     // and anti-aliasing pixels
-    const height = Math.ceil(ascent + descent) + 2;
-    const baseline = Math.ceil(ascent) + 1; // Offset baseline by half the padding
+    const baseHeight = Math.ceil(ascent + descent) + 2;
+
+    // Apply line height multiplier (like Ghostty's adjust-cell-height)
+    // The text is centered vertically in the cell
+    const height = Math.ceil(baseHeight * this.lineHeight);
+    const extraSpace = height - baseHeight;
+    const baseline = Math.ceil(ascent) + 1 + Math.floor(extraSpace / 2); // Center text vertically
 
     return { width, height, baseline };
   }
