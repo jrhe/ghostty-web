@@ -412,6 +412,31 @@ console.log('Selection:', this.start, this.end);
 console.log('Selected text:', this.getSelectedText());
 ```
 
+## Known Limitations / Future Work
+
+### Underline Variations & Overline (Not Exposed from WASM)
+
+Native Ghostty supports:
+- **Underline styles**: `none`, `single`, `double`, `curly`, `dotted`, `dashed` (SGR 4:0-5)
+- **Overline**: SGR 53
+
+However, the WASM bindings currently only expose a single `UNDERLINE` bit flag in `CellFlags`. The detailed underline style and overline flag are stored in a separate style lookup table (`style_id` → `Style.flags`) that isn't exposed to JavaScript.
+
+**Current behavior:**
+- All underline styles render as simple single underline
+- Overline doesn't render at all
+
+**To fix (requires WASM binding changes):**
+1. In `ghostty.ts`, look up `cell.style_id` in the style set
+2. Extract `style.flags.underline` (u3 enum) and `style.flags.overline` (bool)
+3. Pass to renderer for proper rendering
+
+**Impact:** Low priority. Curly underlines are used by some editors (Neovim LSP diagnostics), but terminal-based coding agents typically use colors instead. The renderer already handles procedural box-drawing, block elements, braille, and other special characters.
+
+**Reference:**
+- Native style definition: `ghostty/src/terminal/style.zig` (line ~38)
+- Underline enum: `ghostty/src/terminal/sgr.zig` (line ~144)
+
 ## Resources
 
 - **Ghostty Source:** https://github.com/ghostty-org/ghostty
