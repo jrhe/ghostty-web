@@ -1137,8 +1137,9 @@ export class CanvasRenderer {
 
     // Link underlines are drawn during cell rendering (see renderCell)
 
-    // Render cursor (only if we're at the bottom, not scrolled)
-    if (viewportY === 0 && cursor.visible && this.cursorVisible) {
+    // Render cursor (unless suppressed during snapshot loading or cursor is hidden by app)
+    const shouldDrawCursor = viewportY === 0 && cursor.visible && this.cursorVisible && !this.cursorSuppressed;
+    if (shouldDrawCursor) {
       this.renderCursor(cursor.x, cursor.y);
     }
 
@@ -2361,6 +2362,16 @@ export class CanvasRenderer {
   // ==========================================================================
   // Public API
   // ==========================================================================
+
+  /**
+   * Suppress cursor rendering temporarily.
+   * Use this during snapshot loading to prevent ghost cursors at intermediate positions.
+   */
+  private cursorSuppressed: boolean = false;
+
+  public suppressCursor(suppress: boolean): void {
+    this.cursorSuppressed = suppress;
+  }
 
   /**
    * Update theme colors
